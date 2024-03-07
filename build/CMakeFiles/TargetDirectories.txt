@@ -1,5 +1,0 @@
-/home/nano/liujian/test_websocket/build/CMakeFiles/rebuild_cache.dir
-/home/nano/liujian/test_websocket/build/CMakeFiles/edit_cache.dir
-/home/nano/liujian/test_websocket/build/CMakeFiles/target.dir
-/home/nano/liujian/test_websocket/build/CMakeFiles/libnvdsinfer_custom_impl_Yolo_coco.dir
-/home/nano/liujian/test_websocket/build/CMakeFiles/tcp_ip_message.dir

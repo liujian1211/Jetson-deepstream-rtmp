@@ -1,1 +1,0 @@
-/usr/bin/aarch64-linux-gnu-g++   -Wall -fPIC -Wno-error=deprecated-declarations -g  -rdynamic CMakeFiles/gps.dir/src/getGPS.cpp.o  -o gps  -L/opt/nvidia/deepstream/deepstream-5.0/lib -Wl,-rpath,/opt/nvidia/deepstream/deepstream-5.0/lib -lserial -lpthread 
