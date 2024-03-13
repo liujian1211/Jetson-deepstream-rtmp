@@ -49,6 +49,8 @@ messageGenerateRealtimeVideo MGrealtimevideo; //实例化 生成实时视频心�
 // getGPS::~getGPS(){}
 getGPS GG;  //实例化 获取当前GPS
 
+tcpIpMessage TIM;
+
 /**
  * 执行cmd命令行，使用分离线程
 */
@@ -57,14 +59,6 @@ void executeCommand()
     system("sh /home/nano/startup.sh");
 }
 
-/**
- * 终止上面的cmd命令，也使用分离线程
-*/
-// void terminateCommand()
-// {
-//     // 终止指定进程
-//     system("pkill -f /home/nano/startup.sh"); 
-// }
 
 /**
  * 判断接收的报文类型：心跳、定位、视频打开、视频关闭、实时视频
@@ -271,8 +265,6 @@ int MessageType(int sockfd)
                     else
                     {                      
                         std::cout<<"发送视频关闭回复报文成功"<<std::endl;
-                        // std::thread t(terminateCommand);
-                        // t.detach();
                         
                         MGvideoclose.serialNum++;
                         break;
@@ -377,11 +369,33 @@ void sendHeartbeat(int sockfd)
 }
 
 /**
+ * 定义更新经纬度的函数
+*/
+// void tcpIpMessage::updateLatiAndLon(std::string ret1,std::string ret2,const Callback&callback)
+// {
+//     std::vector<std::string> result;
+//     result.clear();
+//     result.push_back(ret1);
+//     result.push_back(ret2);
+//     callback(result);
+// }
+
+//此函数应被其它cpp调用到
+void callbackLatiAndLon(std::vector<std::string>&result)
+{
+    std::cout<<"接收到的经纬度为"<<std::endl;
+    for(const auto& value:result)
+    {
+        std::cout<<value<<std::endl;
+    }
+}
+
+
+/**
  * 发送定位报文
 */
 void sendLocation(int sockfd) 
 {
-    
     //将int类型的length转为16进制，length是固定不变的
     std::stringstream ssLength;
     ssLength << std::setw(8) << std::setfill('0') << std::hex << MGlocation.length;  
@@ -395,6 +409,9 @@ void sendLocation(int sockfd)
     {
         if(std::stof(result[1]) && std::stof(result[2]))    //当获取到经纬度的时候
         {          
+            //通过回调函数callbackLatiAndLon将result[1]和result[2]传出去
+            // TIM.updateLatiAndLon(result[1],result[2],callbackLatiAndLon);          
+            
             time_t currentTime = time(NULL);  //获取当前时间戳
             // if((time(NULL)%20)==0)  //每隔20s更新一次
             if(currentTime - lastOutputTime >=20)
@@ -487,7 +504,7 @@ void sendLocation(int sockfd)
 
 }
 
-int message()
+int tcpIpMessage::message()
 {
     // 创建socket
     int sockfd = socket(AF_INET,SOCK_STREAM,0);
@@ -629,5 +646,5 @@ int message()
 
 int main()
 {
-    message();
+    TIM.message();
 }

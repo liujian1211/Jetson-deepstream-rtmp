@@ -160,6 +160,11 @@ std::vector <std::string> getGPS::getGPSData(int serial_fd,const Callback& callb
 
 }
 
+// std::vector <std::string> getGPS::getLatiAndLon(int serial_fd , const Callback& callbackLatiAndLon)
+// {
+
+// }
+
 //回调函数，用以在getGPSData中实时得到最后的result
 std::vector<std::string> handleGPSData(const std::vector<std::string>&data) 
 {

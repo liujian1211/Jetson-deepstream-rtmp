@@ -16,7 +16,6 @@ class getGPS
     private:
         struct termios tty;
         char data;
-        // std::vector <std::string> result;
 
         char buffer_[256];
 
@@ -26,11 +25,13 @@ class getGPS
         ~getGPS();
         int gpsOpen();
 
+        // 获取GPS数据的回调函数
         using Callback = std::function<void(const std::vector<std::string>&)>;
         std::vector <std::string> getGPSData(int serial_fd, const Callback& callback);       
 
         double convert2Degrees(std::string in_data1,std::string in_data2);
         std::vector <std::string> parseLine(std::string input);
+
         
         int gps_t;
         double lat;
