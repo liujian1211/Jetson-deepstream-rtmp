@@ -2,6 +2,8 @@
 #include <iostream>
 #include "deepstream_test.h"
 
+// DeepStream::DeepStream(){}
+// DeepStream::~DeepStream(){}
 
 int main()
 {
@@ -11,6 +13,7 @@ int main()
     //**************测试socket功能**************
 
     //**************测试deepstream的功能**************
+    
     DeepStream DS;
     DS.deepstream_func();
     //**************测试deepstream的功能**************

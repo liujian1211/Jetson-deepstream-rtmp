@@ -1,12 +1,10 @@
 #include "getGPS.h"
 #include <sstream>
 #include <iomanip>
+#include <mutex>
+// #include "deepstream_test.h"
 
-getGPS::getGPS(){}
-getGPS::~getGPS(){}
-// getGPS GG;  //实例化 获取当前GPS
-
-
+getGPS GG;
 
 int getGPS::gpsOpen()
 {
@@ -52,14 +50,15 @@ int getGPS::gpsOpen()
 
 }
 
-std::vector <std::string> getGPS::getGPSData(int serial_fd,const Callback& callback)
+// std::vector <std::string> getGPS::getGPSData(int serial_fd,const Callback& callback)
+void getGPS::getGPSData(int serial_fd,const Callback& callback)
 {
-    getGPS GG;
-    std::vector <std::string>result;
+    
     char buffer[256];
     std::string gps_data;
+
     while(true)
-    {
+    {      
         int bytes_read = read(serial_fd, buffer, sizeof(buffer));  // 从串口读取数据
         
         if (bytes_read > 0) 
@@ -138,7 +137,7 @@ std::vector <std::string> getGPS::getGPSData(int serial_fd,const Callback& callb
                 
                 gps_data = gps_data.substr(pos + 1);
             }
-         
+            
             result.clear();
             result.push_back(GG.utctime);
             result.push_back(std::to_string(GG.lat) + GG.ulat);
@@ -150,20 +149,13 @@ std::vector <std::string> getGPS::getGPSData(int serial_fd,const Callback& callb
             result.push_back(GG.sog + "Kn");
             result.push_back(GG.kph+"km/h");
 
-            callback(result);
-            // if(executed)
-            // break;
-
-            // return result;
-        }
+            // GG.gpsData = result;
+            
+        }       
+        callback(result);
     }
-
 }
 
-// std::vector <std::string> getGPS::getLatiAndLon(int serial_fd , const Callback& callbackLatiAndLon)
-// {
-
-// }
 
 //回调函数，用以在getGPSData中实时得到最后的result
 std::vector<std::string> handleGPSData(const std::vector<std::string>&data) 

@@ -5,60 +5,37 @@
 #include <arpa/inet.h>
 #include <sstream>
 #include <iomanip>
-#include "messageGenerate.h"
 #include "getGPS.h"
+#include "deepstream_test.h"
 
-// #define SERVER_IP "10.0.1.34"   //定义服务器IP
-// #define SERVER_PORT 8080     //定义服务器端口
+#define SERVER_IP "10.0.1.34"   //定义服务器IP
+#define SERVER_PORT 8080     //定义服务器端口
 
-#define SERVER_IP "112.82.244.92"   //定义服务器IP
-#define SERVER_PORT 7872     //定义服务器端口
+// #define SERVER_IP "112.82.244.92"   //定义服务器IP
+// #define SERVER_PORT 7872     //定义服务器端口
 
 #define BUFFER_SIZE 1024     //设置接收报文类型函数的报文的长度
 #define BUFFER_SIZE_HEARTBEAT 1024 //设置接收心跳报文的长度
 
-messageGenerate::messageGenerate(){}
-messageGenerate::~messageGenerate(){}
 messageGenerate MG; //实例化 生成报文类
-
-messageGenerateHeartbeat::messageGenerateHeartbeat(){}
-messageGenerateHeartbeat::~messageGenerateHeartbeat(){}
 messageGenerateHeartbeat MGheartbeat; //实例化 生成心跳报文类
-
-messageGenerateLocation::messageGenerateLocation(){}
-messageGenerateLocation::~messageGenerateLocation(){}
 messageGenerateLocation MGlocation; //实例化 生成定位报文类
-
-messageGenerateRegister::messageGenerateRegister(){}
-messageGenerateRegister::~messageGenerateRegister(){}
 messageGenerateRegister MGregister; //实例化 生成注册报文类
-
-messageGenerateVideoOpen::messageGenerateVideoOpen(){}
-messageGenerateVideoOpen::~messageGenerateVideoOpen(){}
 messageGenerateVideoOpen MGvideoopen; //实例化 生成视频打开报文类
-
-messageGenerateVideoClose::messageGenerateVideoClose(){}
-messageGenerateVideoClose::~messageGenerateVideoClose(){}
 messageGenerateVideoClose MGvideoclose; //实例化 生成视频关闭报文类
-
-messageGenerateRealtimeVideo::messageGenerateRealtimeVideo(){}
-messageGenerateRealtimeVideo::~messageGenerateRealtimeVideo(){}
 messageGenerateRealtimeVideo MGrealtimevideo; //实例化 生成实时视频心跳报文类
 
-// getGPS::getGPS(){}
-// getGPS::~getGPS(){}
-getGPS GG;  //实例化 获取当前GPS
-
-tcpIpMessage TIM;
+// std::string tcpIpMessage::lat;
+// std::string tcpIpMessage::lon;
 
 /**
  * 执行cmd命令行，使用分离线程
 */
 void executeCommand()
 {   
-    system("sh /home/nano/startup.sh");
+    // system("sh /home/nano/startup.sh");
+    DeepStream::deepstream_func();
 }
-
 
 /**
  * 判断接收的报文类型：心跳、定位、视频打开、视频关闭、实时视频
@@ -310,6 +287,7 @@ int MessageType(int sockfd)
 */
 void sendHeartbeat(int sockfd) 
 {  
+    // setenv("LD_PRELOAD", "/home/nano/liujian/test_websocket/utils/libmyplugins.so", 1); //设置环境变量
     //将int类型的length转为16进制
     std::stringstream ssLength;
     ssLength << std::setw(8) << std::setfill('0') << std::hex << MGheartbeat.length;
@@ -368,27 +346,6 @@ void sendHeartbeat(int sockfd)
     }
 }
 
-/**
- * 定义更新经纬度的函数
-*/
-// void tcpIpMessage::updateLatiAndLon(std::string ret1,std::string ret2,const Callback&callback)
-// {
-//     std::vector<std::string> result;
-//     result.clear();
-//     result.push_back(ret1);
-//     result.push_back(ret2);
-//     callback(result);
-// }
-
-//此函数应被其它cpp调用到
-void callbackLatiAndLon(std::vector<std::string>&result)
-{
-    std::cout<<"接收到的经纬度为"<<std::endl;
-    for(const auto& value:result)
-    {
-        std::cout<<value<<std::endl;
-    }
-}
 
 
 /**
@@ -401,17 +358,22 @@ void sendLocation(int sockfd)
     ssLength << std::setw(8) << std::setfill('0') << std::hex << MGlocation.length;  
     ssLength.str();
 
+    getGPS GG;  //实例化 获取当前GPS
+    // DeepStream DS;
+    
     // 打开GPS，打开一次就可以
     int serial_port = GG.gpsOpen();
-    
+
+    // DeepStream::data("data1","data2");
+ 
     time_t lastOutputTime = time(NULL); // 记录上一次输出的时间戳
     GG.getGPSData(serial_port,[&sockfd, &ssLength,&lastOutputTime](std::vector<std::string>result)
     {
         if(std::stof(result[1]) && std::stof(result[2]))    //当获取到经纬度的时候
         {          
-            //通过回调函数callbackLatiAndLon将result[1]和result[2]传出去
-            // TIM.updateLatiAndLon(result[1],result[2],callbackLatiAndLon);          
             
+            DeepStream::data(result[1],result[2]);
+
             time_t currentTime = time(NULL);  //获取当前时间戳
             // if((time(NULL)%20)==0)  //每隔20s更新一次
             if(currentTime - lastOutputTime >=20)
@@ -423,7 +385,7 @@ void sendLocation(int sockfd)
                 // std::cout<<"真北朝向为"<<result[5]<<",16进制表示为"<<std::setw(8) << std::setfill('0') << std::hex <<MGlocation.Str2Hex(result[5])<<std::endl;  
                 // std::cout<<"速度为"<<result[8]<<",16进制表示为"<<std::setw(8) << std::setfill('0') << std::hex <<MGlocation.Str2Hex(result[2])<<std::endl;
                 // std::cout<<std::endl;
-            
+        
                 //将int类型的serialNum转为16进制
                 std::stringstream ssSerialNum;
                 ssSerialNum <<std::setw(8) << std::setfill('0')<<std::hex <<MGlocation.serialNum;
@@ -615,6 +577,7 @@ int tcpIpMessage::message()
 
                 // 起定位报文发送线程
                 std::thread sendLocationThread(sendLocation,sockfd);
+                // sendLocationThread.detach();
 
                 // 起接收报文线程
                 std::thread recvMsgThread(MessageType,sockfd);
@@ -646,5 +609,6 @@ int tcpIpMessage::message()
 
 int main()
 {
+    tcpIpMessage TIM;  //实例化 TIM
     TIM.message();
 }

@@ -81,35 +81,51 @@ add_library(${TARGET_LIB} SHARED ${SRCFILES}) #生成TARGET_LIB动态库(即libn
 
 # SET(CMAKE_BUILD_TYPE Debug)
 
+# add_executable(target  main.cpp
+# 					   src/deepstream_test.cpp
+# 					#   src/getGPS.cpp
+# 					#    src/tcp_ip_message.cpp
+# 					 )
 
-# 添加可执行程序
+
+# # 将库文件链接到可执行程序target上
+# target_link_libraries(target  ${OpenCV_LIBS}
+# 							  pthread 
+# 							  ${GST_LIBRARIES}
+# 							  -lavutil -lswresample -lavcodec -lavformat
+# 							  ${TARGET_LIB}
+# 							  nvinfer_plugin
+# 							  nvinfer
+# 							  nvparsers
+# 							  nvdsgst_meta
+# 							  nvds_meta
+# 							  ${CUDA_LIBRARIES}
+# 							#   cudart
+# 							  cublas
+# 							  stdc++fs
+# 							)
+
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--preload-library=/home/nano/liujian/test_websocket/utils/libmyplugins.so")
+						
 add_executable(tcp_ip_message src/tcp_ip_message.cpp
-							  src/messageGenerate.cpp
-							  src/getGPS.cpp)
-target_link_libraries(tcp_ip_message -pthread
-									 -lserial)	
+								src/messageGenerate.cpp
+								src/getGPS.cpp
+								src/deepstream_test.cpp
+								)
 
-# add_executable(gps src/getGPS.cpp)
-# target_link_libraries(gps -lserial
-# 						  -lpthread)
-
-add_executable(target main.cpp
-				src/deepstream_test.cpp
-				# src/Trtyolosort.cpp 				
-					)
-
-# 将库文件链接到可执行程序target上
-target_link_libraries(target  ${OpenCV_LIBS}
-							  pthread 
-							  ${GST_LIBRARIES}
-							  -lavutil -lswresample -lavcodec -lavformat
-							  ${TARGET_LIB}
-							  nvinfer_plugin
-							  nvinfer
-							  nvparsers
-							  nvdsgst_meta
-							  nvds_meta
-							  ${CUDA_LIBRARIES}
-							#   cudart
-							  cublas
-							  stdc++fs)
+target_link_libraries(tcp_ip_message 
+		-pthread
+	   -lserial
+	   ${GST_LIBRARIES}
+		-lavutil -lswresample -lavcodec -lavformat
+		${TARGET_LIB}
+		nvinfer_plugin
+		nvinfer
+		nvparsers
+		nvdsgst_meta
+		nvds_meta
+		${CUDA_LIBRARIES}
+		cublas
+		stdc++fs
+	   )
+link_directories(${PROJECT_SOURCE_DIR}/utils)

@@ -5,18 +5,20 @@
 #include <glib.h>
 #include <string>
 #include <ctime>
-#include "messageGenerate.h"
+// #include "messageGenerate.h"
+#include "tcp_ip_message.h"
+#include "getGPS.h"
 
 #define MAX_DISPLAY_LEN 128
 
 // #define PGIE_CLASS_ID_VEHICLE 0
 // #define PGIE_CLASS_ID_PERSON 2
-#define LABEL_FILE "/home/nano/liujian/test_websocket/utils/labels_coco.txt"
+#define LABEL_FILE "/home/nano/liujian/test_websocket/utils/labels_roadDamage.txt"
 
 
-messageGenerate::messageGenerate(){}
-messageGenerate::~messageGenerate(){}
-messageGenerate MG; //实例化 生成报文类
+// messageGenerate::messageGenerate(){}
+// messageGenerate::~messageGenerate(){}
+// messageGenerate MG; //实例化 生成报文类
 // #define LOCAL_VIDEO "/opt/nvidia/deepstream/deepstream-5.0/samples/streams/sample_720p.h264"
 
 
@@ -45,294 +47,320 @@ messageGenerate MG; //实例化 生成报文类
 #define CONFIG_GPU_ID "gpu-id"
 #define CONFIG_DISPLAY_TRACKING_ID "display-tracking-id"
 
+// 需要显示的经纬度
+static std::string lat;
+static std::string lon;
 
-DeepStream::DeepStream(){}
-DeepStream::~DeepStream(){}
-DeepStream DS; //实例化DeepStream类，必须在函数之外实例化，不然每次进函数会重新实例化，导致之前的数据清空
-
-// std::stringstream ss;
-// ss <<"rtmp://112.82.244.90:1935/live/vehicle_" <<MG.deviceNum;
-// const char* RTMP_SERVER_URL = ss.str().c_str();
+std::vector<guint64>  DeepStream::g_Transverse_cracks_ids;
+std::vector<guint64>  DeepStream::g_Linear_cracks_ids;
+std::vector<guint64>  DeepStream::g_Pit_slot_ids;
+std::vector<guint64>  DeepStream::g_Crack_ids;
+std::vector<guint64>  DeepStream::g_Mark_ids;
+std::vector<guint64>  DeepStream::g_Tyreskidmark_ids;
+std::vector<guint64>  DeepStream::g_patched_ids;
+std::vector<guint64>  DeepStream::g_manhole_ids;
+std::vector<guint64>  DeepStream::g_joint_ids;
+std::vector<guint64>  DeepStream::g_trash_ids;
+std::vector<guint64>  DeepStream::g_puddle_ids;
+std::vector<guint64>  DeepStream::g_repaired_crack_ids;
+std::vector<guint64>  DeepStream::g_animal_ids;
+std::vector<guint64>  DeepStream::g_shoes_ids;
+std::vector<guint64>  DeepStream::g_bumps_ids;
+std::vector<guint64>  DeepStream::g_shadow_ids;
+std::vector<guint64>  DeepStream::g_incomplete_mark_ids;
+std::vector<guint64>  DeepStream::g_crushing_plate_ids;
+std::vector<guint64>  DeepStream::g_faulting_ids; 
 
 /* osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
  * and update params for drawing rectangle, object information etc. */
+void DeepStream::data(std::string data1,std::string data2)
+{       
+    lat = data1;
+    lon = data2;  
+    // std::cout<<"date里的lat的值为"<<lat<<std::endl;
+    // std::cout<<"date里的lon的值为"<<lon<<std::endl;
+}
 
-static GstPadProbeReturn
-osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info, gpointer u_data)
-{
+
+static GstPadProbeReturn osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info, gpointer u_data)
+{     
+    
     GstBuffer *buf = (GstBuffer *) info->data;
 
     NvDsObjectMeta *obj_meta = NULL;
- 
+
     NvDsMetaList * l_frame = NULL;
     NvDsMetaList * l_obj = NULL;
     NvDsDisplayMeta *display_meta = NULL;
 
     //获取批处理元数据
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta (buf);
-    
+
+    // std::cout<<"lat的值为"<<lat<<std::endl;
+    // std::cout<<"lon的值为"<<lon<<std::endl;
+
     //遍历批处理元数据，得到每一帧的元数据
     for (l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
-     {
+    {
         //获取每一帧的元数据
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *) (l_frame->data);
         int offset = 0;
-        int offset_1 = 0;
 
         //遍历每一帧的元数据，得到每一个检测到的物体的元数据
         for (l_obj = frame_meta->obj_meta_list; l_obj != NULL;l_obj = l_obj->next) 
+        {
+          obj_meta = (NvDsObjectMeta *) (l_obj->data);
+          
+          if (obj_meta->class_id == 0) 
           {
-            obj_meta = (NvDsObjectMeta *) (l_obj->data);
-            
-            if (obj_meta->class_id == 0) 
-            {
-              // 如果object id不在g_Transverse_cracks_ids中，添加进去
-              if (std::find(DS.g_Transverse_cracks_ids.begin(), DS.g_Transverse_cracks_ids.end(), obj_meta->object_id) == DS.g_Transverse_cracks_ids.end())
-              {                                
-                DS.g_Transverse_cracks_ids.push_back(obj_meta->object_id);
-              }              
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=0;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0;                            
-            }
-            if (obj_meta->class_id == 1) 
-            {
-              if (std::find(DS.g_Linear_cracks_ids.begin(), DS.g_Linear_cracks_ids.end(), obj_meta->object_id) == DS.g_Linear_cracks_ids.end())
-              {
-                DS.g_Linear_cracks_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0;    
-            }
-            if(obj_meta->class_id == 2)
-            {
-              if (std::find(DS.g_Pit_slot_ids.begin(), DS.g_Pit_slot_ids.end(), obj_meta->object_id) == DS.g_Pit_slot_ids.end())
-              {
-                DS.g_Pit_slot_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 3)
-            {
-              if (std::find(DS.g_Crack_ids.begin(), DS.g_Crack_ids.end(), obj_meta->object_id) == DS.g_Crack_ids.end())
-              {
-                DS.g_Crack_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 4)
-            {
-              if (std::find(DS.g_Mark_ids.begin(), DS.g_Mark_ids.end(), obj_meta->object_id) == DS.g_Mark_ids.end())
-              {
-                DS.g_Mark_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 5)
-            {
-              if (std::find(DS.g_Tyreskidmark_ids.begin(), DS.g_Tyreskidmark_ids.end(), obj_meta->object_id) == DS.g_Tyreskidmark_ids.end())
-              {
-                DS.g_Tyreskidmark_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 6)
-            {
-              if (std::find(DS.g_patched_ids.begin(), DS.g_patched_ids.end(), obj_meta->object_id) == DS.g_patched_ids.end())
-              {
-                DS.g_patched_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 7)
-            {
-              if (std::find(DS.g_manhole_ids.begin(), DS.g_manhole_ids.end(), obj_meta->object_id) == DS.g_manhole_ids.end())
-              {
-                DS.g_manhole_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 8)
-            {
-              if (std::find(DS.g_joint_ids.begin(), DS.g_joint_ids.end(), obj_meta->object_id) == DS.g_joint_ids.end())
-              {
-                DS.g_joint_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 9)
-            {
-              if (std::find(DS.g_trash_ids.begin(), DS.g_trash_ids.end(), obj_meta->object_id) == DS.g_trash_ids.end())
-              {
-                DS.g_trash_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 10)
-            {
-              if (std::find(DS.g_puddle_ids.begin(), DS.g_puddle_ids.end(), obj_meta->object_id) == DS.g_puddle_ids.end())
-              {
-                DS.g_puddle_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 11)
-            {
-              if (std::find(DS.g_repaired_crack_ids.begin(), DS.g_repaired_crack_ids.end(), obj_meta->object_id) == DS.g_repaired_crack_ids.end())
-              {
-                DS.g_repaired_crack_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 12)
-            {
-              if (std::find(DS.g_animal_ids.begin(), DS.g_animal_ids.end(), obj_meta->object_id) == DS.g_animal_ids.end())
-              {
-                DS.g_animal_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 13)
-            {
-              if (std::find(DS.g_shoes_ids.begin(), DS.g_shoes_ids.end(), obj_meta->object_id) == DS.g_shoes_ids.end())
-              {
-                DS.g_shoes_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 14)
-            {
-              if (std::find(DS.g_bumps_ids.begin(), DS.g_bumps_ids.end(), obj_meta->object_id) == DS.g_bumps_ids.end())
-              {
-                DS.g_bumps_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 15)
-            {
-              if (std::find(DS.g_shadow_ids.begin(), DS.g_shadow_ids.end(), obj_meta->object_id) == DS.g_shadow_ids.end())
-              {
-                DS.g_shadow_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 16)
-            {
-              if (std::find(DS.g_incomplete_mark_ids.begin(), DS.g_incomplete_mark_ids.end(), obj_meta->object_id) == DS.g_incomplete_mark_ids.end())
-              {
-                DS.g_incomplete_mark_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 17)
-            {
-              if (std::find(DS.g_crushing_plate_ids.begin(), DS.g_crushing_plate_ids.end(), obj_meta->object_id) == DS.g_crushing_plate_ids.end())
-              {
-                DS.g_crushing_plate_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
-            if(obj_meta->class_id == 18)
-            {
-              if (std::find(DS.g_faulting_ids.begin(), DS.g_faulting_ids.end(), obj_meta->object_id) == DS.g_faulting_ids.end())
-              {
-                DS.g_faulting_ids.push_back(obj_meta->object_id);                      
-              }
-
-              obj_meta->text_params.font_params.font_size=15;
-              obj_meta->text_params.font_params.font_color.red=255;
-              obj_meta->text_params.font_params.font_color.green = 255;
-              obj_meta->text_params.font_params.font_color.blue = 0;
-              obj_meta->text_params.font_params.font_color.alpha = 1.0; 
-            }
+            // 如果object id不在g_Transverse_cracks_ids中，添加进去
+            if (std::find(DeepStream::g_Transverse_cracks_ids.begin(), DeepStream::g_Transverse_cracks_ids.end(), obj_meta->object_id) == DeepStream::g_Transverse_cracks_ids.end())
+            {                                
+              DeepStream::g_Transverse_cracks_ids.push_back(obj_meta->object_id);
+            }              
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=0;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0;                            
           }
-        
+          if (obj_meta->class_id == 1) 
+          {
+            if (std::find(DeepStream::g_Linear_cracks_ids.begin(), DeepStream::g_Linear_cracks_ids.end(), obj_meta->object_id) == DeepStream::g_Linear_cracks_ids.end())
+            {
+              DeepStream::g_Linear_cracks_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0;    
+          }
+          if(obj_meta->class_id == 2)
+          {
+            if (std::find(DeepStream::g_Pit_slot_ids.begin(), DeepStream::g_Pit_slot_ids.end(), obj_meta->object_id) == DeepStream::g_Pit_slot_ids.end())
+            {
+              DeepStream::g_Pit_slot_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 3)
+          {
+            if (std::find(DeepStream::g_Crack_ids.begin(), DeepStream::g_Crack_ids.end(), obj_meta->object_id) == DeepStream::g_Crack_ids.end())
+            {
+              DeepStream::g_Crack_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 4)
+          {
+            if (std::find(DeepStream::g_Mark_ids.begin(), DeepStream::g_Mark_ids.end(), obj_meta->object_id) == DeepStream::g_Mark_ids.end())
+            {
+              DeepStream::g_Mark_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 5)
+          {
+            if (std::find(DeepStream::g_Tyreskidmark_ids.begin(), DeepStream::g_Tyreskidmark_ids.end(), obj_meta->object_id) == DeepStream::g_Tyreskidmark_ids.end())
+            {
+              DeepStream::g_Tyreskidmark_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 6)
+          {
+            if (std::find(DeepStream::g_patched_ids.begin(), DeepStream::g_patched_ids.end(), obj_meta->object_id) == DeepStream::g_patched_ids.end())
+            {
+              DeepStream::g_patched_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 7)
+          {
+            if (std::find(DeepStream::g_manhole_ids.begin(), DeepStream::g_manhole_ids.end(), obj_meta->object_id) == DeepStream::g_manhole_ids.end())
+            {
+              DeepStream::g_manhole_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 8)
+          {
+            if (std::find(DeepStream::g_joint_ids.begin(), DeepStream::g_joint_ids.end(), obj_meta->object_id) == DeepStream::g_joint_ids.end())
+            {
+              DeepStream::g_joint_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 9)
+          {
+            if (std::find(DeepStream::g_trash_ids.begin(), DeepStream::g_trash_ids.end(), obj_meta->object_id) == DeepStream::g_trash_ids.end())
+            {
+              DeepStream::g_trash_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 10)
+          {
+            if (std::find(DeepStream::g_puddle_ids.begin(), DeepStream::g_puddle_ids.end(), obj_meta->object_id) == DeepStream::g_puddle_ids.end())
+            {
+              DeepStream::g_puddle_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 11)
+          {
+            if (std::find(DeepStream::g_repaired_crack_ids.begin(), DeepStream::g_repaired_crack_ids.end(), obj_meta->object_id) == DeepStream::g_repaired_crack_ids.end())
+            {
+              DeepStream::g_repaired_crack_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 12)
+          {
+            if (std::find(DeepStream::g_animal_ids.begin(), DeepStream::g_animal_ids.end(), obj_meta->object_id) == DeepStream::g_animal_ids.end())
+            {
+              DeepStream::g_animal_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 13)
+          {
+            if (std::find(DeepStream::g_shoes_ids.begin(), DeepStream::g_shoes_ids.end(), obj_meta->object_id) == DeepStream::g_shoes_ids.end())
+            {
+              DeepStream::g_shoes_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 14)
+          {
+            if (std::find(DeepStream::g_bumps_ids.begin(), DeepStream::g_bumps_ids.end(), obj_meta->object_id) == DeepStream::g_bumps_ids.end())
+            {
+              DeepStream::g_bumps_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 15)
+          {
+            if (std::find(DeepStream::g_shadow_ids.begin(), DeepStream::g_shadow_ids.end(), obj_meta->object_id) == DeepStream::g_shadow_ids.end())
+            {
+              DeepStream::g_shadow_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 16)
+          {
+            if (std::find(DeepStream::g_incomplete_mark_ids.begin(), DeepStream::g_incomplete_mark_ids.end(), obj_meta->object_id) == DeepStream::g_incomplete_mark_ids.end())
+            {
+              DeepStream::g_incomplete_mark_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 17)
+          {
+            if (std::find(DeepStream::g_crushing_plate_ids.begin(), DeepStream::g_crushing_plate_ids.end(), obj_meta->object_id) == DeepStream::g_crushing_plate_ids.end())
+            {
+              DeepStream::g_crushing_plate_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+          if(obj_meta->class_id == 18)
+          {
+            if (std::find(DeepStream::g_faulting_ids.begin(), DeepStream::g_faulting_ids.end(), obj_meta->object_id) == DeepStream::g_faulting_ids.end())
+            {
+              DeepStream::g_faulting_ids.push_back(obj_meta->object_id);                      
+            }
+
+            obj_meta->text_params.font_params.font_size=15;
+            obj_meta->text_params.font_params.font_color.red=255;
+            obj_meta->text_params.font_params.font_color.green = 255;
+            obj_meta->text_params.font_params.font_color.blue = 0;
+            obj_meta->text_params.font_params.font_color.alpha = 1.0; 
+          }
+        }
+   
+
         //获取显示元数据
         display_meta = nvds_acquire_display_meta_from_pool(batch_meta);
         
@@ -340,14 +368,14 @@ osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info, gpointer u_data
         NvOSD_TextParams *txt_params  = &display_meta->text_params[0];
         display_meta->num_labels = 4; //显示多少段文字就要改成多少
         txt_params->display_text = (char*)g_malloc0 (MAX_DISPLAY_LEN);
-        offset = snprintf(txt_params->display_text, MAX_DISPLAY_LEN, "横向裂缝:%d  ", DS.g_Transverse_cracks_ids.size());
-        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "纵向裂缝:%d  ", DS.g_Linear_cracks_ids.size());
-        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "坑槽:%d  ", DS.g_Pit_slot_ids.size());
-        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "龟裂:%d  ", DS.g_Crack_ids.size());
-        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "抛洒物:%d  ", DS.g_trash_ids.size());
-        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "标线缺失:%d  ", DS.g_incomplete_mark_ids.size());
-        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "错台:%d  ", DS.g_faulting_ids.size());
-        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "破碎板:%d  ", DS.g_crushing_plate_ids.size());
+        offset = snprintf(txt_params->display_text, MAX_DISPLAY_LEN, "横向裂缝:%d  ", DeepStream::g_Transverse_cracks_ids.size());
+        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "纵向裂缝:%d  ", DeepStream::g_Linear_cracks_ids.size());
+        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "坑槽:%d  ", DeepStream::g_Pit_slot_ids.size());
+        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "龟裂:%d  ", DeepStream::g_Crack_ids.size());
+        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "抛洒物:%d  ", DeepStream::g_trash_ids.size());
+        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "标线缺失:%d  ", DeepStream::g_incomplete_mark_ids.size());
+        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "错台:%d  ", DeepStream::g_faulting_ids.size());
+        offset += snprintf(txt_params->display_text+offset, MAX_DISPLAY_LEN-offset, "破碎板:%d  ", DeepStream::g_crushing_plate_ids.size());
 
         // 添加时间显示文字
         NvOSD_TextParams *txt_time  = &display_meta->text_params[1];
@@ -375,7 +403,7 @@ osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info, gpointer u_data
         NvOSD_TextParams *txt_location = &display_meta->text_params[3];
         txt_location->display_text = (char*)g_malloc0(MAX_DISPLAY_LEN);
 
-        std::string location_display ="经度: 纬度:";
+        std::string location_display =lat+" "+lon;
         snprintf(txt_location->display_text,MAX_DISPLAY_LEN,location_display.c_str());
 
         /* 设置识别对象文字的位置 */
@@ -457,6 +485,8 @@ osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info, gpointer u_data
 
         //添加显示
         nvds_add_display_meta_to_frame(frame_meta, display_meta);
+
+        
     }
 
     // g_print ("Frame Number = %d Number of objects = %d "
@@ -465,7 +495,6 @@ osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info, gpointer u_data
     // frame_number++;
     return GST_PAD_PROBE_OK;
 }
-
 
 static gboolean
 bus_call (GstBus * bus, GstMessage * msg, gpointer data)
@@ -503,10 +532,13 @@ if (error)                                                               \
     goto done;                                                           \
 }
 
+
+
 //获取文件的绝对路径
 static gchar *
 get_absolute_file_path(gchar *cfg_file_path, gchar *file_path)
 {
+   
     gchar abs_cfg_path[PATH_MAX + 1];
     gchar *abs_file_path;
     gchar *delim;
@@ -535,6 +567,7 @@ get_absolute_file_path(gchar *cfg_file_path, gchar *file_path)
     abs_file_path = g_strconcat(abs_cfg_path, file_path, NULL);
     g_free(file_path);
 
+    std::cout<<"绝对路径为"<<abs_file_path<<std::endl;
     return abs_file_path;
 }
 
@@ -660,7 +693,9 @@ done:
 
 int DeepStream::deepstream_func()
 {
+
   std::stringstream ss;
+  messageGenerate MG;
   ss <<"rtmp://112.82.244.90:1935/live/vehicle_" <<MG.deviceNum;
   std::string RTMP_SERVER_URL = ss.str();
 
@@ -867,9 +902,12 @@ int DeepStream::deepstream_func()
   if (!osd_sink_pad)
       g_print("Unable to get sink pad\n");
   else
-      // 参数：pad, 探针类型, 探针回调函数, 回调函数的参数, 回调函数的参数释放函数
-      gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe, NULL, NULL); // 添加探针
-  // g_timeout_add(5000, perf_print_callback, &g_perf_data);                                                // 添加定时器，用于打印性能数据
+  {
+    // 参数：pad, 探针类型, 探针回调函数, 回调函数的参数, 回调函数的参数释放函数
+    gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe, NULL, NULL); // 添加探针
+  // g_timeout_add(5000, perf_print_callback, &g_perf_data);      
+  }
+                                                // 添加定时器，用于打印性能数据
   gst_object_unref(osd_sink_pad);
 
   //add a message handler 
